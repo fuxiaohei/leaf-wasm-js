@@ -1,6 +1,14 @@
 [package]
 name = "leaf-wasm-js"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 
 [dependencies]
+quickjs-wasm-rs = { git = "https://github.com/shopify/javy" }
+quickjs-wasm-sys = { git = "https://github.com/shopify/javy" }
+
+[workspace.package]
+version = "0.1.11"
+authors = ["fuxiaohei<fudong0797@gmail.com>"]
+edition = "2021"
