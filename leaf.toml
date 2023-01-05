@@ -1,0 +1,5 @@
+manifest = "v1"
+name = "leaf-wasm-js"
+description = "leaf wasm js project"
+authors = []
+language = "js"
