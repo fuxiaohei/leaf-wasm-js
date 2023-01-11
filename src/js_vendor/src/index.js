@@ -1,10 +1,5 @@
 import Headers from "./headers";
-
+import Request from "./request";
 
 globalThis.Headers = Headers;
-
-function hello() {
-    return new Headers({})
-}
-
-hello();
+globalThis.Request = Request;

@@ -1,17 +1,7 @@
-function assert_equals(actual, expected, message) {
-    if (!Object.is(actual, expected))
-        throw Error(message + ': expected: ' + expected + ', actual: ' + actual);
-}
+import { assert_equals, assert_true, assert_false } from "./assert";
 
-function assert_true(actual, message) {
-    assert_equals(actual, true, message)
-}
-
-function assert_false(actual, message) {
-    assert_equals(actual, false, message)
-}
-
-function test_headers() {
+export default
+    function test_headers() {
     var headerDict = {
         "name1": "value1",
         "name2": "value2",
@@ -34,9 +24,9 @@ function test_headers() {
     {
         // init headers with object
         var headers = new Headers(headerDict);
-        for (key in headerDict) {
-            assert_equals(headers.get(key), String(headerDict[key]),
-                "name: " + key + " has value: " + headerDict[key]);
+        for (name in headerDict) {
+            assert_equals(headers.get(name), String(headerDict[name]),
+                "name: " + name + " has value: " + headerDict[name]);
         }
     }
     {
@@ -113,5 +103,3 @@ function test_headers() {
     }
     return true;
 }
-
-console.log("test_headers", test_headers())
