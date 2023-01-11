@@ -23,6 +23,6 @@ wit-bindgen-guest-rust = { git = "https://github.com/bytecodealliance/wit-bindge
 crate-type = ["cdylib"]
 
 [workspace.package]
-version = "0.1.14"
+version = "0.1.16"
 authors = ["fuxiaohei<fudong0797@gmail.com>"]
 edition = "2021"
