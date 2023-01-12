@@ -12,5 +12,5 @@ release: venodr
 	cp ./target/wasm32-wasi/release/leaf_wasm_js.wasm ./quickjs.wasm
 	wasm-opt --strip-debug -o quickjs.wasm quickjs.wasm
 
-test:
+test: release
 	cat src/js_vendor/dist/tests.js | wizer quickjs.wasm -o quickjs.wizer.wasm --allow-wasi --inherit-stdio=true --inherit-env=true

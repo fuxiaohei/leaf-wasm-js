@@ -1,58 +1,68 @@
-
 export default class Headers {
-    constructor(input) {
-        if (!input) {
-            this.headers = {}
-            return;
-        }
-        // if input is not object ,unsupport now
-        if (typeof input !== "object") {
-            throw new Error("Headers only support object");
-        }
-        let headers = {}
-        for (const key in input) {
-            headers[key] = String(input[key]);
-        }
-        this.headers = headers;
+  constructor (input) {
+    // if input is Headers instance
+    if (input instanceof Headers) {
+      const values = input.entries()
+      this.headers = {}
+      for (const [key, value] of values) {
+        this.headers[key] = value
+      }
+      return
     }
 
-    append(key, value) {
-        this.headers[key] = String(value);
-        return value;
+    if (!input) {
+      this.headers = {}
+      return
     }
+    // if input is not object ,unsupport now
+    if (typeof input !== 'object') {
+      throw new Error('Headers only support object')
+    }
+    const headers = {}
+    for (const key in input) {
+      headers[key] = String(input[key])
+    }
+    this.headers = headers
+  }
 
-    set(key, value) {
-        this.append(key, value);
-        return value;
-    }
+  append (key, value) {
+    this.headers[key] = String(value)
+    return value
+  }
 
-    has(key) {
-        return key in this.headers;
-    }
+  set (key, value) {
+    this.append(key, value)
+    return value
+  }
 
-    delete(key) {
-        let dropValue = delete this.headers[key];
-        return dropValue;
-    }
+  has (key) {
+    return key in this.headers
+  }
 
-    get(key) {
-        return this.headers[key];
-    }
+  delete (key) {
+    const dropValue = delete this.headers[key]
+    return dropValue
+  }
 
-    *keys() {
-        for (const name of Object.keys(this.headers)) {
-            yield name
-        }
-    }
-    *values() {
-        for (const name of Object.keys(this.headers)) {
-            yield this.headers[name]
-        }
-    }
-    *entries() {
-        for (const name of Object.keys(this.headers)) {
-            yield [name, this.headers[name]]
-        }
-    }
+  get (key) {
+    return this.headers[key]
+  }
 
+  * keys () {
+    for (const name of Object.keys(this.headers)) {
+      yield name
+    }
+  }
+
+  * values () {
+    for (const name of Object.keys(this.headers)) {
+      yield this.headers[name]
+    }
+  }
+
+  * entries () {
+    for (const name of Object.keys(this.headers)) {
+      yield [name, this.headers[name]]
+    }
+  }
 }

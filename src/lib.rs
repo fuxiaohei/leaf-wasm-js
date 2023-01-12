@@ -1,16 +1,20 @@
 use anyhow::Result;
 use bytes::Bytes;
+use http::header::{HeaderName, HeaderValue};
 use leaf_sdk::http::{Request, Response};
 use leaf_sdk_macro::http_main;
 use once_cell::sync::OnceCell;
-use quickjs_wasm_rs::{Context, Serializer, Value};
+use quickjs_wasm_rs::{Context, Deserializer, Serializer, Value};
 use send_wrapper::SendWrapper;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
-use std::collections::HashMap;
-use std::io::{self, Read};
-use std::ops::Deref;
-use std::str::FromStr;
+use std::time::Instant;
+use std::{
+    collections::HashMap,
+    io::{self, Read},
+    ops::Deref,
+    str::FromStr,
+};
 
 static JS_VENDOR: &str = include_str!("./js_vendor/dist/main.js");
 static JS_CONTEXT: OnceCell<SendWrapper<Context>> = OnceCell::new();
@@ -19,12 +23,6 @@ static JS_HANDLER: OnceCell<SendWrapper<Value>> = OnceCell::new();
 static JS_RESPONSE_PROMISE_RESOLVE: OnceCell<SendWrapper<Value>> = OnceCell::new();
 static JS_RESPONSE_PROMISE_REJECT: OnceCell<SendWrapper<Value>> = OnceCell::new();
 static JS_EVENT_RESPOND_WITH: OnceCell<SendWrapper<Value>> = OnceCell::new();
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct JsFetchEvent {
-    name: String,
-    request: JsRequest,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JsRequest {
@@ -74,6 +72,7 @@ fn console_log(context: &Context, _this: &Value, args: &[Value]) -> Result<Value
 }
 
 fn init_js_context() -> Result<()> {
+    let st = Instant::now();
     let mut script = String::new();
     io::stdin().read_to_string(&mut script)?;
 
@@ -90,8 +89,10 @@ fn init_js_context() -> Result<()> {
     // load source
     let _ = context.eval_global("index.js", &script)?;
 
+    context.execute_pending()?;
+
     // set global variables
-    let handler = global.get_property("callglobalFetchHandler")?;
+    let handler = global.get_property("callGlobalFetchHandler")?;
     let on_resolve = context.wrap_callback(on_resolve)?;
     let on_reject = context.wrap_callback(on_reject)?;
     let respond_with = context.wrap_callback(event_respond_with)?;
@@ -109,6 +110,7 @@ fn init_js_context() -> Result<()> {
         .set(SendWrapper::new(respond_with))
         .unwrap();
 
+    println!("init_js_context ok, cost {:?}", st.elapsed());
     Ok(())
 }
 
@@ -127,34 +129,40 @@ pub fn handle_request(_req: Request) -> Result<Response> {
     let global = JS_GLOBAL.get().unwrap();
     let handler = JS_HANDLER.get().unwrap();
 
-    // create FetchEvent object
+    // create input request object
     let request = JsRequest {
         id: 1,
         method: "GET".to_string(),
         uri: "https://www.baidu.com".to_string(),
         headers: HashMap::new(),
-        body: None,
-    };
-    let event = JsFetchEvent {
-        name: "fetch".to_string(),
-        request,
+        body: Some(ByteBuf::from(bytes::Bytes::from("hello world"))),
     };
     let mut serializer = Serializer::from_context(context)?;
-    event.serialize(&mut serializer)?;
-    let event_value = serializer.value;
-    // set respondWith function
-    let respond_with = JS_EVENT_RESPOND_WITH.get().unwrap();
-    event_value.set_property("respondWith", respond_with.deref().clone())?;
+    request.serialize(&mut serializer)?;
+    let request_value = serializer.value;
 
-    match handler.call(&global, &[event_value]) {
-        Ok(result) => {
-            println!("result: {:?}", result.as_str().unwrap());
-            let body = result.as_str().unwrap().to_string();
-            let resp = http::Response::builder()
-                .status(200)
-                .body(Some(Bytes::from(body)))
-                .unwrap();
-            Ok(resp)
+    match handler.call(&global, &[request_value]) {
+        Ok(_) => {
+            // it needs read body to response for Deserializer,
+            // so we need to wait for the promise from response.arrayBuffer()
+            context.execute_pending()?;
+
+            let global = context.global_object()?;
+            let response = global.get_property("globalResponse")?;
+            let deserializer = &mut Deserializer::from(response);
+            let response = JsResponse::deserialize(deserializer)?;
+
+            let mut builder = http::Response::builder().status(response.status);
+            if let Some(headers) = builder.headers_mut() {
+                for (key, value) in &response.headers {
+                    headers.insert(
+                        HeaderName::try_from(key.deref())?,
+                        HeaderValue::from_bytes(value.as_bytes())?,
+                    );
+                }
+            }
+            
+            Ok(builder.body(response.body.map(|buffer| buffer.to_vec().into()))?)
         }
         Err(e) => {
             println!("e: {:?}", e);
