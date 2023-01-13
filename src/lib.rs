@@ -1,7 +1,8 @@
 use anyhow::Result;
 use bytes::Bytes;
 use http::header::{HeaderName, HeaderValue};
-use leaf_sdk::http::{Request, Response};
+use http::Request as httpRequest;
+use leaf_sdk::http::{fetch, FetchOptions, Request, Response};
 use leaf_sdk_macro::http_main;
 use once_cell::sync::OnceCell;
 use quickjs_wasm_rs::{Context, Deserializer, Serializer, Value};
@@ -71,6 +72,52 @@ fn console_log(context: &Context, _this: &Value, args: &[Value]) -> Result<Value
     context.undefined_value()
 }
 
+fn leaf_fetch(context: &Context, _this: &Value, args: &[Value]) -> Result<Value> {
+    match args {
+        [value] => {
+            let deserializer = &mut Deserializer::from(value.clone());
+            let request = JsRequest::deserialize(deserializer)?;
+
+            // build request from JsRequest
+            let builder = httpRequest::builder()
+                .method(request.method.as_str())
+                .uri(&request.uri);
+            let fetch_request: Request =
+                builder.body(request.body.map(|buffer| buffer.to_vec().into()))?;
+
+            // call fetch by host function from sdk
+            let fetch_response = fetch(fetch_request, FetchOptions::default()).unwrap();
+
+            // build JsResponse
+            let mut headers = HashMap::new();
+            fetch_response.headers().iter().for_each(|(key, value)| {
+                headers.insert(
+                    key.as_str().to_string(),
+                    value.to_str().unwrap().to_string(),
+                );
+            });
+            let body = match fetch_response.body() {
+                Some(body) => Some(ByteBuf::from(body.to_vec())),
+                None => None,
+            };
+            let response = JsResponse {
+                status: fetch_response.status().into(),
+                headers,
+                body,
+            };
+
+            // serialize JsResponse to Value
+            let mut serializer = Serializer::from_context(context)?;
+            response.serialize(&mut serializer)?;
+            Ok(serializer.value)
+        }
+        _ => Err(anyhow::anyhow!(
+            "fetch expected 1 argument, got {}",
+            args.len()
+        )),
+    }
+}
+
 fn init_js_context() -> Result<()> {
     let st = Instant::now();
     let mut script = String::new();
@@ -79,10 +126,16 @@ fn init_js_context() -> Result<()> {
     let context = Context::default();
 
     let global = context.global_object()?;
+
     // add console.log()
     let console = context.object_value()?;
     console.set_property("log", context.wrap_callback(console_log)?)?;
     global.set_property("console", console)?;
+
+    // add leaf bindings
+    let leaf = context.object_value()?;
+    leaf.set_property("fetch", context.wrap_callback(leaf_fetch)?)?;
+    global.set_property("leaf", leaf)?;
 
     // load vendor
     let _ = context.eval_global("vendor.js", JS_VENDOR)?;
@@ -161,7 +214,7 @@ pub fn handle_request(_req: Request) -> Result<Response> {
                     );
                 }
             }
-            
+
             Ok(builder.body(response.body.map(|buffer| buffer.to_vec().into()))?)
         }
         Err(e) => {

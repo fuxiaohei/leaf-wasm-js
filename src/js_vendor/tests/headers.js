@@ -52,7 +52,6 @@ function test_headers () {
     // has
     const headers = new Headers(headerDict)
     for (const name in headerDict) { assert_true(headers.has(name), 'headers has name ' + name) }
-
     assert_false(headers.has('nameNotInHeaders'), 'headers do not have header: nameNotInHeaders')
   }
   {

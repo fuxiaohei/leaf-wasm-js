@@ -72,6 +72,7 @@ export class Request {
     this.method = options.method ? String(options.method).toUpperCase() : 'GET'
     this.redirect = options.redirect || 'follow'
     this.headers = new Headers(options.headers || {})
+
     this._bodyInit = options.body
     this._initBody(options.body)
     validate_request(this)

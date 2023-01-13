@@ -1,5 +1,6 @@
 import Headers from './headers'
 import { Request, Response } from './request_or_response'
+import fetch from './fetch'
 
 class FormData {}
 
@@ -10,7 +11,9 @@ globalThis.Headers = Headers
 globalThis.Request = Request
 globalThis.Response = Response
 globalThis.FormData = FormData
+globalThis.fetch = fetch
 
+// addEventListener callback
 let globalFetchHandler = null
 
 // eslint-disable-next-line no-unused-vars
