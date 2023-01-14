@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bytes::Bytes;
 use http::header::{HeaderName, HeaderValue};
-use http::Request as httpRequest;
+use http::{Request as httpRequest, StatusCode};
 use leaf_sdk::http::{fetch, FetchOptions, Request, Response};
 use leaf_sdk_macro::http_main;
 use once_cell::sync::OnceCell;
@@ -177,23 +177,35 @@ pub fn handle_sdk_http(req: Request) -> Response {
     handle_request(req).unwrap()
 }
 
-pub fn handle_request(_req: Request) -> Result<Response> {
+pub fn handle_request(req: Request) -> Result<Response> {
     let context = JS_CONTEXT.get().unwrap();
     let global = JS_GLOBAL.get().unwrap();
     let handler = JS_HANDLER.get().unwrap();
 
     // create input request object
+    let mut headers = HashMap::new();
+    req.headers().iter().for_each(|(key, value)| {
+        headers.insert(
+            key.as_str().to_string(),
+            value.to_str().unwrap().to_string(),
+        );
+    });
+    let body = match req.body() {
+        Some(body) => Some(ByteBuf::from(body.to_vec())),
+        None => None,
+    };
     let request = JsRequest {
         id: 1,
-        method: "GET".to_string(),
-        uri: "https://www.baidu.com".to_string(),
-        headers: HashMap::new(),
-        body: Some(ByteBuf::from(bytes::Bytes::from("hello world"))),
+        method: req.method().to_string(),
+        uri: req.uri().clone().to_string(),
+        headers,
+        body,
     };
     let mut serializer = Serializer::from_context(context)?;
     request.serialize(&mut serializer)?;
     let request_value = serializer.value;
 
+    // call global fetch handler with request object
     match handler.call(&global, &[request_value]) {
         Ok(_) => {
             // it needs read body to response for Deserializer,
@@ -220,7 +232,7 @@ pub fn handle_request(_req: Request) -> Result<Response> {
         Err(e) => {
             println!("e: {:?}", e);
             Ok(http::Response::builder()
-                .status(500)
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .body(Some(Bytes::from(e.to_string())))
                 .unwrap())
         }

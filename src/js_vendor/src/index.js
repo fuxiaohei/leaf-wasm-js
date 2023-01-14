@@ -52,7 +52,7 @@ function callGlobalFetchHandler (input) {
       globalThis.globalResponse = result // notify the result to the caller, it maybe a promise
       const response = await result
       const headers = {}
-      for (const entry in response.headers.entries()) {
+      for (const entry of response.headers.entries()) {
         headers[entry[0]] = entry[1]
       }
       globalThis.globalResponse = {
