@@ -22,11 +22,13 @@ jobs:
           rustc --version
           cargo clippy --version
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "leaf-wasm-js"
+
       - name: Build
         run: |
-          ./install_deps.bash
-          (cd src/js_vendor && npm install)
-          make test
+          ./build.sh
 
       - name: Upload cli binary
         uses: actions/upload-artifact@v3
