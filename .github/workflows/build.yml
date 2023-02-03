@@ -25,6 +25,7 @@ jobs:
       - name: Build
         run: |
           ./install_deps.bash
+          (cd src/js_vendor && npm install)
           make test
 
       - name: Upload cli binary
