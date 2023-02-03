@@ -13,4 +13,4 @@ release: venodr
 	wasm-opt --strip-debug -o quickjs.wasm quickjs.wasm
 
 test: release
-	cat src/js_vendor/dist/tests.js | wizer quickjs.wasm -o quickjs.wizer.wasm --allow-wasi --inherit-stdio=true --inherit-env=true
+	cat src/js_vendor/dist/tests.js | wizer quickjs.wasm -o quickjs.wizer.wasm --allow-wasi --inherit-stdio=true --inherit-env=true --wasm-bulk-memory=true

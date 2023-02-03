@@ -2,8 +2,10 @@ use anyhow::Result;
 use bytes::Bytes;
 use http::header::{HeaderName, HeaderValue};
 use http::{Request as httpRequest, StatusCode};
-use leaf_sdk::http::{fetch, FetchOptions, Request, Response};
-use leaf_sdk_macro::http_main;
+use leaf_sdk::{
+    http::{fetch, FetchOptions, Request, Response},
+    http_main,
+};
 use once_cell::sync::OnceCell;
 use quickjs_wasm_rs::{Context, Deserializer, Serializer, Value};
 use send_wrapper::SendWrapper;
